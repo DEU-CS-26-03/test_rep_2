@@ -1,11 +1,11 @@
-#Docker Compose 안에서는 http://python-app:8000, 로컬 단독 실행 시에는 기본값 http://localhost:8000
 spring:
   datasource:
-    #MariaDB 전용 드라이버 추후 수정
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://localhost:3306/capstone_db
-    username: root
-    password: 1234
+    # localhost → capstone-mariadb (Docker 네트워크 내부 통신)
+    # 하드코딩 제거 → 환경변수로 주입, 없을 경우 기본값 사용
+    url: jdbc:mariadb://${DB_HOST:capstone-mariadb}:${MARIA_PORT:3306}/${MARIA_DATABASE:capstone_db}?characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${MARIA_USER:capstone}
+    password: ${MARIA_PASSWORD:capstonepass}
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,7 +13,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        # MariaDB 방언 설정
         dialect: org.hibernate.dialect.MariaDBDialect
 
 server:
@@ -21,4 +20,5 @@ server:
 
 python:
   service:
-    url: ${PYTHON_SERVICE_URL:http://localhost:8000}
+    # Docker 내부: capstone-python, 로컬 단독 실행: localhost
+    url: ${PYTHON_SERVICE_URL:http://capstone-python:8000}
