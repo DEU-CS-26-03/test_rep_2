@@ -1,23 +1,18 @@
-version: '3.8'
-
 services:
   mariadb:
     image: mariadb:10.11
     container_name: capstone-mariadb
     restart: always
     environment:
-      # .env 파일의 변수를 환경변수로 주입 (MariaDB 공식 권장 변수명 사용)
       MARIADB_ROOT_PASSWORD: ${MARIA_ROOT_PASSWORD}
       MARIADB_DATABASE: ${MARIA_DATABASE}
       MARIADB_USER: ${MARIA_USER}
       MARIADB_PASSWORD: ${MARIA_PASSWORD}
       TZ: Asia/Seoul
     command:
-      # 한글 데이터 깨짐 방지를 위한 기본 인코딩 설정 추가
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     ports:
-      # 호스트포트:컨테이너포트
       - "${MARIA_PORT:-3306}:3306"
     volumes:
       - ./mariadb/data:/var/lib/mysql
@@ -25,7 +20,6 @@ services:
     networks:
       - capstone-net
     healthcheck:
-      # 비밀번호 하드코딩 없이 MariaDB 내장 헬스체크 스크립트 사용
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
@@ -58,57 +52,26 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      python-app:
-        condition: service_started
     environment:
-      # DB 접속 정보 - .env 변수로 하드코딩 제거
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:${MARIA_PORT:-3306}/${MARIA_DATABASE}?characterEncoding=UTF-8&serverTimezone=Asia/Seoul
       SPRING_DATASOURCE_USERNAME: ${MARIA_USER}
       SPRING_DATASOURCE_PASSWORD: ${MARIA_PASSWORD}
-      # Redis 접속 정보
+
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      # Python 서비스 URL (서비스명 기준)
-      PYTHON_SERVICE_URL: http://python-app:8000
+
+      # 클라우드에서는 외부 GPU 서버 주소 사용
+      PYTHON_SERVICE_URL: ${PYTHON_SERVICE_URL}
+
       TZ: Asia/Seoul
-      # JWT 설정
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
-
     ports:
       - "8080:8080"
     networks:
       - capstone-net
 
-
-  python-app:
-    build:
-      context: ./python
-      dockerfile: Dockerfile
-    container_name: capstone-python
-    ports:
-      - "8000:8000"
-    environment:
-      # Mock 모드 여부 (true: mock 이미지 반환 / false: 실제 CatVTON 추론)
-      USE_MOCK: ${USE_MOCK:-true}
-      TZ: Asia/Seoul
-    volumes:
-      # 업로드 파일, 결과 이미지 영속화
-      - ./python/workspace/uploads:/app/workspace/uploads
-      - ./python/workspace/results:/app/workspace/results
-      - ./python/workspace/temp:/app/workspace/temp
-      # mock 이미지
-      - ./python/mock:/app/mock
-      # CatVTON 모델 가중치 (Real 모드 시 사용)
-      - ./python/models:/app/models
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - capstone-net
-
 volumes:
-  # mysql_data: 는 ./mariadb/data 바인드 마운트를 사용하므로 불필요하여 삭제했습니다.
   redis_data:
 
 networks:
